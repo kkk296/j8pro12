@@ -1,0 +1,58 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model FavoriteStock {
+  id        String   @id @default(cuid())
+  symbol    String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StockData {
+  id           String   @id @default(cuid())
+  symbol       String   @unique
+  name         String
+  high         Float
+  low          Float
+  close        Float
+  todayOpen    Float?
+  todayHigh    Float?
+  todayLow     Float?
+  todayClose   Float?
+  prevMonthHigh Float?
+  prevMonthLow  Float?
+  prevMonthClose Float?
+  lastUpdated  DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model UserSession {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userType     String   // 'admin', 'client', 'demo'
+  password     String   // password used
+  activatedAt  DateTime @default(now())
+  expiresAt    DateTime? // null for admin (never expires)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model UserSettings {
+  id              String   @id @default(cuid())
+  sessionToken    String   @unique
+  backgroundColor String   @default("#000000")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
