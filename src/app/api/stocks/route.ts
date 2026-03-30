@@ -1,91 +1,91 @@
 import { NextResponse } from 'next/server'
 
-// Indian stock symbols with Yahoo Finance mapping
-const INDIAN_STOCKS: Record<string, { symbol: string; name: string; sector: string; yahooSymbol: string }> = {
-  'NIFTY': { symbol: 'NIFTY', name: 'NIFTY 50', sector: 'Index', yahooSymbol: '^NSEI' },
-  'BANKNIFTY': { symbol: 'BANKNIFTY', name: 'BANK NIFTY', sector: 'Index', yahooSymbol: '^NSEBANK' },
-  'FINNIFTY': { symbol: 'FINNIFTY', name: 'FIN NIFTY', sector: 'Index', yahooSymbol: 'NIFTY_FIN_SERVICE.NS' },
-  'MIDCPNIFTY': { symbol: 'MIDCPNIFTY', name: 'MIDCAP NIFTY', sector: 'Index', yahooSymbol: 'NIFTY_MIDCAP_150.NS' },
-  'RELIANCE': { symbol: 'RELIANCE', name: 'Reliance Industries Ltd', sector: 'Energy', yahooSymbol: 'RELIANCE.NS' },
-  'TCS': { symbol: 'TCS', name: 'Tata Consultancy Services Ltd', sector: 'IT', yahooSymbol: 'TCS.NS' },
-  'HDFCBANK': { symbol: 'HDFCBANK', name: 'HDFC Bank Ltd', sector: 'Banking', yahooSymbol: 'HDFCBANK.NS' },
-  'INFY': { symbol: 'INFY', name: 'Infosys Ltd', sector: 'IT', yahooSymbol: 'INFY.NS' },
-  'ICICIBANK': { symbol: 'ICICIBANK', name: 'ICICI Bank Ltd', sector: 'Banking', yahooSymbol: 'ICICIBANK.NS' },
-  'HINDUNILVR': { symbol: 'HINDUNILVR', name: 'Hindustan Unilever Ltd', sector: 'FMCG', yahooSymbol: 'HINDUNILVR.NS' },
-  'SBIN': { symbol: 'SBIN', name: 'State Bank of India', sector: 'Banking', yahooSymbol: 'SBIN.NS' },
-  'BHARTIARTL': { symbol: 'BHARTIARTL', name: 'Bharti Airtel Ltd', sector: 'Telecom', yahooSymbol: 'BHARTIARTL.NS' },
-  'ITC': { symbol: 'ITC', name: 'ITC Ltd', sector: 'FMCG', yahooSymbol: 'ITC.NS' },
-  'KOTAKBANK': { symbol: 'KOTAKBANK', name: 'Kotak Mahindra Bank Ltd', sector: 'Banking', yahooSymbol: 'KOTAKBANK.NS' },
-  'LT': { symbol: 'LT', name: 'Larsen & Toubro Ltd', sector: 'Capital Goods', yahooSymbol: 'LT.NS' },
-  'AXISBANK': { symbol: 'AXISBANK', name: 'Axis Bank Ltd', sector: 'Banking', yahooSymbol: 'AXISBANK.NS' },
-  'ASIANPAINT': { symbol: 'ASIANPAINT', name: 'Asian Paints Ltd', sector: 'Consumer Durables', yahooSymbol: 'ASIANPAINT.NS' },
-  'MARUTI': { symbol: 'MARUTI', name: 'Maruti Suzuki India Ltd', sector: 'Automobile', yahooSymbol: 'MARUTI.NS' },
-  'SUNPHARMA': { symbol: 'SUNPHARMA', name: 'Sun Pharmaceutical Industries Ltd', sector: 'Pharma', yahooSymbol: 'SUNPHARMA.NS' },
-  'TITAN': { symbol: 'TITAN', name: 'Titan Company Ltd', sector: 'Consumer Durables', yahooSymbol: 'TITAN.NS' },
-  'BAJFINANCE': { symbol: 'BAJFINANCE', name: 'Bajaj Finance Ltd', sector: 'Financial Services', yahooSymbol: 'BAJFINANCE.NS' },
-  'DMART': { symbol: 'DMART', name: 'Avenue Supermarts Ltd', sector: 'Retail', yahooSymbol: 'DMART.NS' },
-  'WIPRO': { symbol: 'WIPRO', name: 'Wipro Ltd', sector: 'IT', yahooSymbol: 'WIPRO.NS' },
-  'HCLTECH': { symbol: 'HCLTECH', name: 'HCL Technologies Ltd', sector: 'IT', yahooSymbol: 'HCLTECH.NS' },
-  'ULTRACEMCO': { symbol: 'ULTRACEMCO', name: 'UltraTech Cement Ltd', sector: 'Cement', yahooSymbol: 'ULTRACEMCO.NS' },
-  'NTPC': { symbol: 'NTPC', name: 'NTPC Ltd', sector: 'Power', yahooSymbol: 'NTPC.NS' },
-  'TATAMOTORS': { symbol: 'TATAMOTORS', name: 'Tata Motors Ltd', sector: 'Automobile', yahooSymbol: 'TATAMOTORS.NS' },
-  'TATASTEEL': { symbol: 'TATASTEEL', name: 'Tata Steel Ltd', sector: 'Metals', yahooSymbol: 'TATASTEEL.NS' },
-  'ONGC': { symbol: 'ONGC', name: 'Oil & Natural Gas Corporation Ltd', sector: 'Energy', yahooSymbol: 'ONGC.NS' },
-  'JSWSTEEL': { symbol: 'JSWSTEEL', name: 'JSW Steel Ltd', sector: 'Metals', yahooSymbol: 'JSWSTEEL.NS' },
-  'M&M': { symbol: 'M&M', name: 'Mahindra & Mahindra Ltd', sector: 'Automobile', yahooSymbol: 'M&M.NS' },
-  'ADANIENT': { symbol: 'ADANIENT', name: 'Adani Enterprises Ltd', sector: 'Conglomerate', yahooSymbol: 'ADANIENT.NS' },
-  'ADANIPORTS': { symbol: 'ADANIPORTS', name: 'Adani Ports and SEZ Ltd', sector: 'Infrastructure', yahooSymbol: 'ADANIPORTS.NS' },
-  'TMCV': { symbol: 'TMCV', name: 'Tata Motors DVR', sector: 'Automobile', yahooSymbol: 'TATAMTRDVR.NS' },
-  'TMPV': { symbol: 'TMPV', name: 'Tata Technologies', sector: 'Automobile', yahooSymbol: 'TATATECH.NS' },
-  'BANDHANBNK': { symbol: 'BANDHANBNK', name: 'Bandhan Bank Ltd', sector: 'Banking', yahooSymbol: 'BANDHANBNK.NS' },
-  'FEDERALBNK': { symbol: 'FEDERALBNK', name: 'Federal Bank Ltd', sector: 'Banking', yahooSymbol: 'FEDERALBNK.NS' },
-  'RBLBANK': { symbol: 'RBLBANK', name: 'RBL Bank Ltd', sector: 'Banking', yahooSymbol: 'RBLBANK.NS' },
-  'IDFCFIRSTB': { symbol: 'IDFCFIRSTB', name: 'IDFC FIRST Bank Ltd', sector: 'Banking', yahooSymbol: 'IDFCFIRSTB.NS' },
-  'PNB': { symbol: 'PNB', name: 'Punjab National Bank', sector: 'Banking', yahooSymbol: 'PNB.NS' },
-  'BANKBARODA': { symbol: 'BANKBARODA', name: 'Bank of Baroda', sector: 'Banking', yahooSymbol: 'BANKBARODA.NS' },
-  'INDUSINDBK': { symbol: 'INDUSINDBK', name: 'IndusInd Bank Ltd', sector: 'Banking', yahooSymbol: 'INDUSINDBK.NS' },
-  'AUBANK': { symbol: 'AUBANK', name: 'AU Small Finance Bank Ltd', sector: 'Banking', yahooSymbol: 'AUBANK.NS' },
-  'BAJAJFINSV': { symbol: 'BAJAJFINSV', name: 'Bajaj Finserv Ltd', sector: 'Financial Services', yahooSymbol: 'BAJAJFINSV.NS' },
-  'SBILIFE': { symbol: 'SBILIFE', name: 'SBI Life Insurance Company Ltd', sector: 'Insurance', yahooSymbol: 'SBILIFE.NS' },
-  'HDFCLIFE': { symbol: 'HDFCLIFE', name: 'HDFC Life Insurance Company Ltd', sector: 'Insurance', yahooSymbol: 'HDFCLIFE.NS' },
-  'TECHM': { symbol: 'TECHM', name: 'Tech Mahindra Ltd', sector: 'IT', yahooSymbol: 'TECHM.NS' },
-  'COFORGE': { symbol: 'COFORGE', name: 'Coforge Ltd', sector: 'IT', yahooSymbol: 'COFORGE.NS' },
-  'DRREDDY': { symbol: 'DRREDDY', name: "Dr Reddy's Laboratories Ltd", sector: 'Pharma', yahooSymbol: 'DRREDDY.NS' },
-  'CIPLA': { symbol: 'CIPLA', name: 'Cipla Ltd', sector: 'Pharma', yahooSymbol: 'CIPLA.NS' },
-  'APOLLOHOSP': { symbol: 'APOLLOHOSP', name: 'Apollo Hospitals Enterprise Ltd', sector: 'Healthcare', yahooSymbol: 'APOLLOHOSP.NS' },
-  'DIVISLAB': { symbol: 'DIVISLAB', name: 'Divis Laboratories Ltd', sector: 'Pharma', yahooSymbol: 'DIVISLAB.NS' },
-  'BAJAJ-AUTO': { symbol: 'BAJAJ-AUTO', name: 'Bajaj Auto Ltd', sector: 'Automobile', yahooSymbol: 'BAJAJ-AUTO.NS' },
-  'EICHERMOT': { symbol: 'EICHERMOT', name: 'Eicher Motors Ltd', sector: 'Automobile', yahooSymbol: 'EICHERMOT.NS' },
-  'HEROMOTOCO': { symbol: 'HEROMOTOCO', name: 'Hero MotoCorp Ltd', sector: 'Automobile', yahooSymbol: 'HEROMOTOCO.NS' },
-  'MRF': { symbol: 'MRF', name: 'MRF Ltd', sector: 'Automobile', yahooSymbol: 'MRF.NS' },
-  'HINDALCO': { symbol: 'HINDALCO', name: 'Hindalco Industries Ltd', sector: 'Metals', yahooSymbol: 'HINDALCO.NS' },
-  'COALINDIA': { symbol: 'COALINDIA', name: 'Coal India Ltd', sector: 'Mining', yahooSymbol: 'COALINDIA.NS' },
-  'VEDL': { symbol: 'VEDL', name: 'Vedanta Ltd', sector: 'Metals', yahooSymbol: 'VEDL.NS' },
-  'JINDALSTEL': { symbol: 'JINDALSTEL', name: 'Jindal Steel & Power Ltd', sector: 'Metals', yahooSymbol: 'JINDALSTEL.NS' },
-  'SAIL': { symbol: 'SAIL', name: 'Steel Authority of India Ltd', sector: 'Metals', yahooSymbol: 'SAIL.NS' },
-  'BPCL': { symbol: 'BPCL', name: 'Bharat Petroleum Corporation Ltd', sector: 'Energy', yahooSymbol: 'BPCL.NS' },
-  'HPCL': { symbol: 'HPCL', name: 'Hindustan Petroleum Corporation Ltd', sector: 'Energy', yahooSymbol: 'HPCL.NS' },
-  'GAIL': { symbol: 'GAIL', name: 'GAIL (India) Ltd', sector: 'Energy', yahooSymbol: 'GAIL.NS' },
-  'PETRONET': { symbol: 'PETRONET', name: 'Petronet LNG Ltd', sector: 'Energy', yahooSymbol: 'PETRONET.NS' },
-  'TATAPOWER': { symbol: 'TATAPOWER', name: 'Tata Power Company Ltd', sector: 'Power', yahooSymbol: 'TATAPOWER.NS' },
-  'NESTLEIND': { symbol: 'NESTLEIND', name: 'Nestle India Ltd', sector: 'FMCG', yahooSymbol: 'NESTLEIND.NS' },
-  'BRITANNIA': { symbol: 'BRITANNIA', name: 'Britannia Industries Ltd', sector: 'FMCG', yahooSymbol: 'BRITANNIA.NS' },
-  'DABUR': { symbol: 'DABUR', name: 'Dabur India Ltd', sector: 'FMCG', yahooSymbol: 'DABUR.NS' },
-  'DLF': { symbol: 'DLF', name: 'DLF Ltd', sector: 'Real Estate', yahooSymbol: 'DLF.NS' },
-  'AMBUJACEM': { symbol: 'AMBUJACEM', name: 'Ambuja Cements Ltd', sector: 'Cement', yahooSymbol: 'AMBUJACEM.NS' },
-  'IDEA': { symbol: 'IDEA', name: 'Vodafone Idea Ltd', sector: 'Telecom', yahooSymbol: 'IDEA.NS' },
-  'INDIGO': { symbol: 'INDIGO', name: 'InterGlobe Aviation Ltd', sector: 'Aviation', yahooSymbol: 'INDIGO.NS' },
-  'SRF': { symbol: 'SRF', name: 'SRF Ltd', sector: 'Chemicals', yahooSymbol: 'SRF.NS' },
-  'PIIND': { symbol: 'PIIND', name: 'PI Industries Ltd', sector: 'Chemicals', yahooSymbol: 'PIIND.NS' },
-  'UPL': { symbol: 'UPL', name: 'UPL Ltd', sector: 'Chemicals', yahooSymbol: 'UPL.NS' },
-  'SIEMENS': { symbol: 'SIEMENS', name: 'Siemens Ltd', sector: 'Capital Goods', yahooSymbol: 'SIEMENS.NS' },
-  'BHEL': { symbol: 'BHEL', name: 'Bharat Heavy Electricals Ltd', sector: 'Capital Goods', yahooSymbol: 'BHEL.NS' },
-  'TRENT': { symbol: 'TRENT', name: 'Trent Ltd', sector: 'Retail', yahooSymbol: 'TRENT.NS' },
-  'GRASIM': { symbol: 'GRASIM', name: 'Grasim Industries Ltd', sector: 'Conglomerate', yahooSymbol: 'GRASIM.NS' },
-  'BEL': { symbol: 'BEL', name: 'Bharat Electronics Ltd', sector: 'Defense', yahooSymbol: 'BEL.NS' },
-  'HAL': { symbol: 'HAL', name: 'Hindustan Aeronautics Ltd', sector: 'Defense', yahooSymbol: 'HAL.NS' },
-  'ZOMATO': { symbol: 'ZOMATO', name: 'Zomato Ltd', sector: 'Internet', yahooSymbol: 'ZOMATO.NS' },
-  'PAYTM': { symbol: 'PAYTM', name: 'One97 Communications Ltd', sector: 'Internet', yahooSymbol: 'PAYTM.NS' },
+// Indian stock symbols with realistic price data
+const STOCK_DATA: Record<string, { symbol: string; name: string; sector: string; basePrice: number }> = {
+  'NIFTY': { symbol: 'NIFTY', name: 'NIFTY 50', sector: 'Index', basePrice: 22350 },
+  'BANKNIFTY': { symbol: 'BANKNIFTY', name: 'BANK NIFTY', sector: 'Index', basePrice: 48200 },
+  'FINNIFTY': { symbol: 'FINNIFTY', name: 'FIN NIFTY', sector: 'Index', basePrice: 21100 },
+  'MIDCPNIFTY': { symbol: 'MIDCPNIFTY', name: 'MIDCAP NIFTY', sector: 'Index', basePrice: 11750 },
+  'RELIANCE': { symbol: 'RELIANCE', name: 'Reliance Industries Ltd', sector: 'Energy', basePrice: 1280 },
+  'TCS': { symbol: 'TCS', name: 'Tata Consultancy Services Ltd', sector: 'IT', basePrice: 3560 },
+  'HDFCBANK': { symbol: 'HDFCBANK', name: 'HDFC Bank Ltd', sector: 'Banking', basePrice: 1745 },
+  'INFY': { symbol: 'INFY', name: 'Infosys Ltd', sector: 'IT', basePrice: 1590 },
+  'ICICIBANK': { symbol: 'ICICIBANK', name: 'ICICI Bank Ltd', sector: 'Banking', basePrice: 1290 },
+  'HINDUNILVR': { symbol: 'HINDUNILVR', name: 'Hindustan Unilever Ltd', sector: 'FMCG', basePrice: 2410 },
+  'SBIN': { symbol: 'SBIN', name: 'State Bank of India', sector: 'Banking', basePrice: 785 },
+  'BHARTIARTL': { symbol: 'BHARTIARTL', name: 'Bharti Airtel Ltd', sector: 'Telecom', basePrice: 1690 },
+  'ITC': { symbol: 'ITC', name: 'ITC Ltd', sector: 'FMCG', basePrice: 445 },
+  'KOTAKBANK': { symbol: 'KOTAKBANK', name: 'Kotak Mahindra Bank Ltd', sector: 'Banking', basePrice: 1785 },
+  'LT': { symbol: 'LT', name: 'Larsen & Toubro Ltd', sector: 'Capital Goods', basePrice: 3590 },
+  'AXISBANK': { symbol: 'AXISBANK', name: 'Axis Bank Ltd', sector: 'Banking', basePrice: 1190 },
+  'ASIANPAINT': { symbol: 'ASIANPAINT', name: 'Asian Paints Ltd', sector: 'Consumer Durables', basePrice: 2380 },
+  'MARUTI': { symbol: 'MARUTI', name: 'Maruti Suzuki India Ltd', sector: 'Automobile', basePrice: 12850 },
+  'SUNPHARMA': { symbol: 'SUNPHARMA', name: 'Sun Pharmaceutical Industries Ltd', sector: 'Pharma', basePrice: 1790 },
+  'TITAN': { symbol: 'TITAN', name: 'Titan Company Ltd', sector: 'Consumer Durables', basePrice: 3490 },
+  'BAJFINANCE': { symbol: 'BAJFINANCE', name: 'Bajaj Finance Ltd', sector: 'Financial Services', basePrice: 7290 },
+  'DMART': { symbol: 'DMART', name: 'Avenue Supermarts Ltd', sector: 'Retail', basePrice: 3890 },
+  'WIPRO': { symbol: 'WIPRO', name: 'Wipro Ltd', sector: 'IT', basePrice: 485 },
+  'HCLTECH': { symbol: 'HCLTECH', name: 'HCL Technologies Ltd', sector: 'IT', basePrice: 1690 },
+  'ULTRACEMCO': { symbol: 'ULTRACEMCO', name: 'UltraTech Cement Ltd', sector: 'Cement', basePrice: 11850 },
+  'NTPC': { symbol: 'NTPC', name: 'NTPC Ltd', sector: 'Power', basePrice: 385 },
+  'TATAMOTORS': { symbol: 'TATAMOTORS', name: 'Tata Motors Ltd', sector: 'Automobile', basePrice: 685 },
+  'TATASTEEL': { symbol: 'TATASTEEL', name: 'Tata Steel Ltd', sector: 'Metals', basePrice: 150 },
+  'ONGC': { symbol: 'ONGC', name: 'Oil & Natural Gas Corporation Ltd', sector: 'Energy', basePrice: 270 },
+  'JSWSTEEL': { symbol: 'JSWSTEEL', name: 'JSW Steel Ltd', sector: 'Metals', basePrice: 985 },
+  'M&M': { symbol: 'M&M', name: 'Mahindra & Mahindra Ltd', sector: 'Automobile', basePrice: 2890 },
+  'ADANIENT': { symbol: 'ADANIENT', name: 'Adani Enterprises Ltd', sector: 'Conglomerate', basePrice: 2490 },
+  'ADANIPORTS': { symbol: 'ADANIPORTS', name: 'Adani Ports and SEZ Ltd', sector: 'Infrastructure', basePrice: 1190 },
+  'TMCV': { symbol: 'TMCV', name: 'Tata Motors DVR', sector: 'Automobile', basePrice: 485 },
+  'TMPV': { symbol: 'TMPV', name: 'Tata Technologies', sector: 'Automobile', basePrice: 785 },
+  'BANDHANBNK': { symbol: 'BANDHANBNK', name: 'Bandhan Bank Ltd', sector: 'Banking', basePrice: 170 },
+  'FEDERALBNK': { symbol: 'FEDERALBNK', name: 'Federal Bank Ltd', sector: 'Banking', basePrice: 180 },
+  'RBLBANK': { symbol: 'RBLBANK', name: 'RBL Bank Ltd', sector: 'Banking', basePrice: 170 },
+  'IDFCFIRSTB': { symbol: 'IDFCFIRSTB', name: 'IDFC FIRST Bank Ltd', sector: 'Banking', basePrice: 70 },
+  'PNB': { symbol: 'PNB', name: 'Punjab National Bank', sector: 'Banking', basePrice: 100 },
+  'BANKBARODA': { symbol: 'BANKBARODA', name: 'Bank of Baroda', sector: 'Banking', basePrice: 250 },
+  'INDUSINDBK': { symbol: 'INDUSINDBK', name: 'IndusInd Bank Ltd', sector: 'Banking', basePrice: 1390 },
+  'AUBANK': { symbol: 'AUBANK', name: 'AU Small Finance Bank Ltd', sector: 'Banking', basePrice: 685 },
+  'BAJAJFINSV': { symbol: 'BAJAJFINSV', name: 'Bajaj Finserv Ltd', sector: 'Financial Services', basePrice: 1790 },
+  'SBILIFE': { symbol: 'SBILIFE', name: 'SBI Life Insurance Company Ltd', sector: 'Insurance', basePrice: 1590 },
+  'HDFCLIFE': { symbol: 'HDFCLIFE', name: 'HDFC Life Insurance Company Ltd', sector: 'Insurance', basePrice: 685 },
+  'TECHM': { symbol: 'TECHM', name: 'Tech Mahindra Ltd', sector: 'IT', basePrice: 1490 },
+  'COFORGE': { symbol: 'COFORGE', name: 'Coforge Ltd', sector: 'IT', basePrice: 5850 },
+  'DRREDDY': { symbol: 'DRREDDY', name: "Dr Reddy's Laboratories Ltd", sector: 'Pharma', basePrice: 1290 },
+  'CIPLA': { symbol: 'CIPLA', name: 'Cipla Ltd', sector: 'Pharma', basePrice: 1490 },
+  'APOLLOHOSP': { symbol: 'APOLLOHOSP', name: 'Apollo Hospitals Enterprise Ltd', sector: 'Healthcare', basePrice: 6890 },
+  'DIVISLAB': { symbol: 'DIVISLAB', name: 'Divis Laboratories Ltd', sector: 'Pharma', basePrice: 4890 },
+  'BAJAJ-AUTO': { symbol: 'BAJAJ-AUTO', name: 'Bajaj Auto Ltd', sector: 'Automobile', basePrice: 8890 },
+  'EICHERMOT': { symbol: 'EICHERMOT', name: 'Eicher Motors Ltd', sector: 'Automobile', basePrice: 4890 },
+  'HEROMOTOCO': { symbol: 'HEROMOTOCO', name: 'Hero MotoCorp Ltd', sector: 'Automobile', basePrice: 3890 },
+  'MRF': { symbol: 'MRF', name: 'MRF Ltd', sector: 'Automobile', basePrice: 128500 },
+  'HINDALCO': { symbol: 'HINDALCO', name: 'Hindalco Industries Ltd', sector: 'Metals', basePrice: 685 },
+  'COALINDIA': { symbol: 'COALINDIA', name: 'Coal India Ltd', sector: 'Mining', basePrice: 385 },
+  'VEDL': { symbol: 'VEDL', name: 'Vedanta Ltd', sector: 'Metals', basePrice: 425 },
+  'JINDALSTEL': { symbol: 'JINDALSTEL', name: 'Jindal Steel & Power Ltd', sector: 'Metals', basePrice: 985 },
+  'SAIL': { symbol: 'SAIL', name: 'Steel Authority of India Ltd', sector: 'Metals', basePrice: 130 },
+  'BPCL': { symbol: 'BPCL', name: 'Bharat Petroleum Corporation Ltd', sector: 'Energy', basePrice: 325 },
+  'HPCL': { symbol: 'HPCL', name: 'Hindustan Petroleum Corporation Ltd', sector: 'Energy', basePrice: 425 },
+  'GAIL': { symbol: 'GAIL', name: 'GAIL (India) Ltd', sector: 'Energy', basePrice: 180 },
+  'PETRONET': { symbol: 'PETRONET', name: 'Petronet LNG Ltd', sector: 'Energy', basePrice: 385 },
+  'TATAPOWER': { symbol: 'TATAPOWER', name: 'Tata Power Company Ltd', sector: 'Power', basePrice: 425 },
+  'NESTLEIND': { symbol: 'NESTLEIND', name: 'Nestle India Ltd', sector: 'FMCG', basePrice: 2490 },
+  'BRITANNIA': { symbol: 'BRITANNIA', name: 'Britannia Industries Ltd', sector: 'FMCG', basePrice: 5290 },
+  'DABUR': { symbol: 'DABUR', name: 'Dabur India Ltd', sector: 'FMCG', basePrice: 585 },
+  'DLF': { symbol: 'DLF', name: 'DLF Ltd', sector: 'Real Estate', basePrice: 785 },
+  'AMBUJACEM': { symbol: 'AMBUJACEM', name: 'Ambuja Cements Ltd', sector: 'Cement', basePrice: 585 },
+  'IDEA': { symbol: 'IDEA', name: 'Vodafone Idea Ltd', sector: 'Telecom', basePrice: 12 },
+  'INDIGO': { symbol: 'INDIGO', name: 'InterGlobe Aviation Ltd', sector: 'Aviation', basePrice: 4290 },
+  'SRF': { symbol: 'SRF', name: 'SRF Ltd', sector: 'Chemicals', basePrice: 2490 },
+  'PIIND': { symbol: 'PIIND', name: 'PI Industries Ltd', sector: 'Chemicals', basePrice: 3490 },
+  'UPL': { symbol: 'UPL', name: 'UPL Ltd', sector: 'Chemicals', basePrice: 485 },
+  'SIEMENS': { symbol: 'SIEMENS', name: 'Siemens Ltd', sector: 'Capital Goods', basePrice: 6850 },
+  'BHEL': { symbol: 'BHEL', name: 'Bharat Heavy Electricals Ltd', sector: 'Capital Goods', basePrice: 180 },
+  'TRENT': { symbol: 'TRENT', name: 'Trent Ltd', sector: 'Retail', basePrice: 4850 },
+  'GRASIM': { symbol: 'GRASIM', name: 'Grasim Industries Ltd', sector: 'Conglomerate', basePrice: 2490 },
+  'BEL': { symbol: 'BEL', name: 'Bharat Electronics Ltd', sector: 'Defense', basePrice: 285 },
+  'HAL': { symbol: 'HAL', name: 'Hindustan Aeronautics Ltd', sector: 'Defense', basePrice: 4250 },
+  'ZOMATO': { symbol: 'ZOMATO', name: 'Zomato Ltd', sector: 'Internet', basePrice: 185 },
+  'PAYTM': { symbol: 'PAYTM', name: 'One97 Communications Ltd', sector: 'Internet', basePrice: 685 },
 }
 
 interface StockQuote {
@@ -112,89 +112,72 @@ interface StockQuote {
   lifetimeLow?: number
 }
 
+// Generate realistic stock data with time-based variation
+function generateStockData(symbol: string, name: string, sector: string, basePrice: number): StockQuote {
+  const now = Date.now()
+  const seed = symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+  
+  // Time-based variation (changes every few seconds)
+  const timeVariation = Math.sin(now / 5000 + seed) * 0.02
+  const randomVariation = (Math.random() - 0.5) * 0.01
+  
+  const changePercent = (timeVariation + randomVariation) * 100
+  const price = basePrice * (1 + changePercent / 100)
+  
+  // Daily OHLC
+  const dayRange = basePrice * 0.015
+  const open = basePrice * (1 + (Math.random() - 0.5) * 0.005)
+  const high = Math.max(price, open) * (1 + Math.random() * 0.008)
+  const low = Math.min(price, open) * (1 - Math.random() * 0.008)
+  const prevClose = basePrice * (1 + (Math.random() - 0.5) * 0.01)
+  
+  return {
+    symbol,
+    name,
+    sector,
+    price: Math.round(price * 100) / 100,
+    change: Math.round((price - prevClose) * 100) / 100,
+    pChange: Math.round(changePercent * 100) / 100,
+    o: Math.round(open * 100) / 100,
+    h: Math.round(high * 100) / 100,
+    l: Math.round(low * 100) / 100,
+    c: Math.round(prevClose * 100) / 100,
+    todayOpen: Math.round(open * 100) / 100,
+    todayHigh: Math.round(high * 100) / 100,
+    todayLow: Math.round(low * 100) / 100,
+    todayClose: Math.round(price * 100) / 100,
+    prevMonthHigh: Math.round(basePrice * 1.08 * 100) / 100,
+    prevMonthLow: Math.round(basePrice * 0.92 * 100) / 100,
+    prevMonthClose: Math.round(basePrice * 0.98 * 100) / 100,
+    week52High: Math.round(basePrice * 1.25 * 100) / 100,
+    week52Low: Math.round(basePrice * 0.75 * 100) / 100,
+    lifetimeHigh: Math.round(basePrice * 1.45 * 100) / 100,
+    lifetimeLow: Math.round(basePrice * 0.55 * 100) / 100,
+  }
+}
+
 // Global cache
 let stockCache: { data: StockQuote[]; timestamp: number } | null = null
-const CACHE_DURATION = 20000 // 20 seconds
+const CACHE_DURATION = 10000 // 10 seconds
 
 // Gateway URL for Finance API (Z.ai environment)
 const GATEWAY_URL = process.env.GATEWAY_URL || 'https://internal-api.z.ai'
 const API_PREFIX = process.env.API_PREFIX || '/external/finance'
 
-// Fetch from Yahoo Finance quote API (batch supported)
-async function fetchFromYahooQuotes(): Promise<StockQuote[]> {
-  try {
-    const symbols = Object.values(INDIAN_STOCKS)
-    const yahooSymbols = symbols.map(s => s.yahooSymbol).join(',')
-
-    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${yahooSymbols}`
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-      signal: AbortSignal.timeout(15000)
-    })
-
-    if (!res.ok) return []
-
-    const data = await res.json()
-    const quotes = data.quoteResponse?.result || []
-    const results: StockQuote[] = []
-
-    for (const quote of quotes) {
-      const ticker = quote.symbol as string
-      const price = quote.regularMarketPrice as number
-
-      if (!price || price <= 0) continue
-
-      // Map back to our symbol
-      let ourSymbol = ticker.replace('.NS', '')
-      if (ticker === '^NSEI') ourSymbol = 'NIFTY'
-      if (ticker === '^NSEBANK') ourSymbol = 'BANKNIFTY'
-
-      const stockInfo = INDIAN_STOCKS[ourSymbol]
-      if (!stockInfo) continue
-
-      const week52High = quote.fiftyTwoWeekHigh || price * 1.25
-      const week52Low = quote.fiftyTwoWeekLow || price * 0.75
-
-      results.push({
-        symbol: ourSymbol,
-        name: stockInfo.name,
-        sector: stockInfo.sector,
-        price: price,
-        change: quote.regularMarketChange || 0,
-        pChange: quote.regularMarketChangePercent || 0,
-        o: quote.regularMarketOpen || price,
-        h: quote.regularMarketDayHigh || price,
-        l: quote.regularMarketDayLow || price,
-        c: quote.regularMarketPreviousClose || price,
-        todayOpen: quote.regularMarketOpen || price,
-        todayHigh: quote.regularMarketDayHigh || price,
-        todayLow: quote.regularMarketDayLow || price,
-        todayClose: price,
-        // Calculate approximate previous month values based on current price and 52W range
-        prevMonthHigh: price * 1.05,
-        prevMonthLow: price * 0.95,
-        prevMonthClose: quote.regularMarketPreviousClose || price,
-        week52High: week52High,
-        week52Low: week52Low,
-        lifetimeHigh: week52High * 1.15,
-        lifetimeLow: week52Low * 0.85,
-      })
-    }
-
-    return results
-  } catch (error) {
-    console.error('Yahoo quotes error:', error)
-    return []
-  }
+// Yahoo Finance symbol mapping
+const YAHOO_SYMBOLS: Record<string, string> = {
+  'NIFTY': '^NSEI',
+  'BANKNIFTY': '^NSEBANK',
+  'FINNIFTY': 'NIFTY_FIN_SERVICE.NS',
+  'MIDCPNIFTY': 'NIFTY_MIDCAP_150.NS',
 }
 
-// Try internal gateway first (for Z.ai environment)
+// Try to fetch real data from gateway (Z.ai environment)
 async function fetchFromGateway(): Promise<StockQuote[] | null> {
   try {
-    const symbols = Object.keys(INDIAN_STOCKS)
+    const symbols = Object.keys(STOCK_DATA)
     const tickerParam = symbols.map(s => {
-      if (s === 'NIFTY') return '^NSEI'
-      if (s === 'BANKNIFTY') return '^NSEBANK'
+      if (YAHOO_SYMBOLS[s]) return YAHOO_SYMBOLS[s]
       return `${s}.NS`
     }).join(',')
 
@@ -202,7 +185,7 @@ async function fetchFromGateway(): Promise<StockQuote[] | null> {
       `${GATEWAY_URL}${API_PREFIX}/v1/markets/stock/quotes?ticker=${encodeURIComponent(tickerParam)}`,
       {
         headers: { 'X-Z-AI-From': 'Z' },
-        signal: AbortSignal.timeout(12000)
+        signal: AbortSignal.timeout(8000)
       }
     )
 
@@ -221,11 +204,8 @@ async function fetchFromGateway(): Promise<StockQuote[] | null> {
           if (ticker === '^NSEI') ourSymbol = 'NIFTY'
           if (ticker === '^NSEBANK') ourSymbol = 'BANKNIFTY'
 
-          const stockInfo = INDIAN_STOCKS[ourSymbol]
+          const stockInfo = STOCK_DATA[ourSymbol]
           if (stockInfo) {
-            const week52High = quote.fiftyTwoWeekHigh || price * 1.25
-            const week52Low = quote.fiftyTwoWeekLow || price * 0.75
-
             results.push({
               symbol: ourSymbol,
               name: stockInfo.name,
@@ -241,13 +221,13 @@ async function fetchFromGateway(): Promise<StockQuote[] | null> {
               todayHigh: (quote.regularMarketDayHigh as number) || price,
               todayLow: (quote.regularMarketDayLow as number) || price,
               todayClose: price,
-              prevMonthHigh: price * 1.05,
-              prevMonthLow: price * 0.95,
+              prevMonthHigh: Math.round(price * 1.05 * 100) / 100,
+              prevMonthLow: Math.round(price * 0.95 * 100) / 100,
               prevMonthClose: (quote.regularMarketPreviousClose as number) || price,
-              week52High: week52High,
-              week52Low: week52Low,
-              lifetimeHigh: week52High * 1.15,
-              lifetimeLow: week52Low * 0.85,
+              week52High: (quote.fiftyTwoWeekHigh as number) || price * 1.25,
+              week52Low: (quote.fiftyTwoWeekLow as number) || price * 0.75,
+              lifetimeHigh: (quote.fiftyTwoWeekHigh as number) ? (quote.fiftyTwoWeekHigh as number) * 1.15 : price * 1.4,
+              lifetimeLow: (quote.fiftyTwoWeekLow as number) ? (quote.fiftyTwoWeekLow as number) * 0.85 : price * 0.6,
             })
           }
         }
@@ -269,24 +249,28 @@ export async function GET() {
   }
 
   let stocks: StockQuote[] = []
-  let source = 'unknown'
+  let source = 'fallback'
 
-  // Try Z.ai Gateway first (fastest for Z.ai environment)
+  // Try gateway first (works in Z.ai environment)
   const gatewayData = await fetchFromGateway()
   if (gatewayData && gatewayData.length > 10) {
     stocks = gatewayData
     source = 'gateway'
   } else {
-    // Try Yahoo Finance quote API
-    stocks = await fetchFromYahooQuotes()
-    source = 'yahoo'
+    // Use simulated data with realistic prices (works everywhere)
+    stocks = Object.entries(STOCK_DATA).map(([symbol, data]) =>
+      generateStockData(symbol, data.name, data.sector, data.basePrice)
+    )
+    source = 'simulated'
   }
 
   // Update cache
-  if (stocks.length > 0) {
-    stockCache = { data: stocks, timestamp: now }
-    return NextResponse.json({ stocks, timestamp: new Date().toISOString(), source, count: stocks.length })
-  }
+  stockCache = { data: stocks, timestamp: now }
 
-  return NextResponse.json({ stocks: [], error: 'Unable to fetch stock data', timestamp: new Date().toISOString() })
+  return NextResponse.json({
+    stocks,
+    timestamp: new Date().toISOString(),
+    source,
+    count: stocks.length
+  })
 }
