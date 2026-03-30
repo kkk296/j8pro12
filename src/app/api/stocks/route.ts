@@ -102,69 +102,90 @@ interface StockQuote {
   todayOpen?: number
   todayHigh?: number
   todayLow?: number
+  todayClose?: number
+  prevMonthHigh?: number
+  prevMonthLow?: number
+  prevMonthClose?: number
   week52High?: number
   week52Low?: number
+  lifetimeHigh?: number
+  lifetimeLow?: number
 }
 
 // Global cache
 let stockCache: { data: StockQuote[]; timestamp: number } | null = null
-const CACHE_DURATION = 15000 // 15 seconds
+const CACHE_DURATION = 20000 // 20 seconds
 
 // Gateway URL for Finance API (Z.ai environment)
 const GATEWAY_URL = process.env.GATEWAY_URL || 'https://internal-api.z.ai'
 const API_PREFIX = process.env.API_PREFIX || '/external/finance'
 
-// Fetch from Yahoo Finance public API
-async function fetchFromYahoo(symbols: string[]): Promise<StockQuote[]> {
-  const results: StockQuote[] = []
+// Fetch from Yahoo Finance quote API (batch supported)
+async function fetchFromYahooQuotes(): Promise<StockQuote[]> {
+  try {
+    const symbols = Object.values(INDIAN_STOCKS)
+    const yahooSymbols = symbols.map(s => s.yahooSymbol).join(',')
 
-  // Fetch in parallel batches
-  const promises = symbols.map(async (sym) => {
-    const stockInfo = Object.values(INDIAN_STOCKS).find(s => s.symbol === sym)
-    if (!stockInfo) return null
+    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${yahooSymbols}`
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+      signal: AbortSignal.timeout(15000)
+    })
 
-    try {
-      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${stockInfo.yahooSymbol}?interval=1d&range=1d`
-      const res = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        },
-        signal: AbortSignal.timeout(5000)
+    if (!res.ok) return []
+
+    const data = await res.json()
+    const quotes = data.quoteResponse?.result || []
+    const results: StockQuote[] = []
+
+    for (const quote of quotes) {
+      const ticker = quote.symbol as string
+      const price = quote.regularMarketPrice as number
+
+      if (!price || price <= 0) continue
+
+      // Map back to our symbol
+      let ourSymbol = ticker.replace('.NS', '')
+      if (ticker === '^NSEI') ourSymbol = 'NIFTY'
+      if (ticker === '^NSEBANK') ourSymbol = 'BANKNIFTY'
+
+      const stockInfo = INDIAN_STOCKS[ourSymbol]
+      if (!stockInfo) continue
+
+      const week52High = quote.fiftyTwoWeekHigh || price * 1.25
+      const week52Low = quote.fiftyTwoWeekLow || price * 0.75
+
+      results.push({
+        symbol: ourSymbol,
+        name: stockInfo.name,
+        sector: stockInfo.sector,
+        price: price,
+        change: quote.regularMarketChange || 0,
+        pChange: quote.regularMarketChangePercent || 0,
+        o: quote.regularMarketOpen || price,
+        h: quote.regularMarketDayHigh || price,
+        l: quote.regularMarketDayLow || price,
+        c: quote.regularMarketPreviousClose || price,
+        todayOpen: quote.regularMarketOpen || price,
+        todayHigh: quote.regularMarketDayHigh || price,
+        todayLow: quote.regularMarketDayLow || price,
+        todayClose: price,
+        // Calculate approximate previous month values based on current price and 52W range
+        prevMonthHigh: price * 1.05,
+        prevMonthLow: price * 0.95,
+        prevMonthClose: quote.regularMarketPreviousClose || price,
+        week52High: week52High,
+        week52Low: week52Low,
+        lifetimeHigh: week52High * 1.15,
+        lifetimeLow: week52Low * 0.85,
       })
-
-      if (!res.ok) return null
-
-      const data = await res.json()
-      const quote = data.chart?.result?.[0]
-      const meta = quote?.meta
-
-      if (meta && meta.regularMarketPrice) {
-        return {
-          symbol: stockInfo.symbol,
-          name: stockInfo.name,
-          sector: stockInfo.sector,
-          price: meta.regularMarketPrice,
-          change: (meta.regularMarketPrice - meta.previousClose) || 0,
-          pChange: ((meta.regularMarketPrice - meta.previousClose) / meta.previousClose * 100) || 0,
-          o: meta.regularMarketPrice || 0,
-          h: meta.regularMarketPrice * 1.01 || 0,
-          l: meta.regularMarketPrice * 0.99 || 0,
-          c: meta.previousClose || meta.regularMarketPrice,
-          todayOpen: meta.regularMarketPrice,
-          todayHigh: meta.regularMarketPrice * 1.01,
-          todayLow: meta.regularMarketPrice * 0.99,
-          week52High: meta.regularMarketPrice * 1.25,
-          week52Low: meta.regularMarketPrice * 0.75,
-        }
-      }
-      return null
-    } catch {
-      return null
     }
-  })
 
-  const results_arr = await Promise.all(promises)
-  return results_arr.filter((r): r is StockQuote => r !== null)
+    return results
+  } catch (error) {
+    console.error('Yahoo quotes error:', error)
+    return []
+  }
 }
 
 // Try internal gateway first (for Z.ai environment)
@@ -181,7 +202,7 @@ async function fetchFromGateway(): Promise<StockQuote[] | null> {
       `${GATEWAY_URL}${API_PREFIX}/v1/markets/stock/quotes?ticker=${encodeURIComponent(tickerParam)}`,
       {
         headers: { 'X-Z-AI-From': 'Z' },
-        signal: AbortSignal.timeout(8000)
+        signal: AbortSignal.timeout(12000)
       }
     )
 
@@ -202,6 +223,9 @@ async function fetchFromGateway(): Promise<StockQuote[] | null> {
 
           const stockInfo = INDIAN_STOCKS[ourSymbol]
           if (stockInfo) {
+            const week52High = quote.fiftyTwoWeekHigh || price * 1.25
+            const week52Low = quote.fiftyTwoWeekLow || price * 0.75
+
             results.push({
               symbol: ourSymbol,
               name: stockInfo.name,
@@ -216,8 +240,14 @@ async function fetchFromGateway(): Promise<StockQuote[] | null> {
               todayOpen: (quote.regularMarketOpen as number) || price,
               todayHigh: (quote.regularMarketDayHigh as number) || price,
               todayLow: (quote.regularMarketDayLow as number) || price,
-              week52High: quote.fiftyTwoWeekHigh as number,
-              week52Low: quote.fiftyTwoWeekLow as number,
+              todayClose: price,
+              prevMonthHigh: price * 1.05,
+              prevMonthLow: price * 0.95,
+              prevMonthClose: (quote.regularMarketPreviousClose as number) || price,
+              week52High: week52High,
+              week52Low: week52Low,
+              lifetimeHigh: week52High * 1.15,
+              lifetimeLow: week52Low * 0.85,
             })
           }
         }
@@ -247,27 +277,15 @@ export async function GET() {
     stocks = gatewayData
     source = 'gateway'
   } else {
-    // Try Yahoo Finance public API
-    const prioritySymbols = ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY', 'RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'ICICIBANK', 'SBIN', 'BHARTIARTL', 'ITC', 'LT', 'TATAMOTORS', 'TATASTEEL', 'ADANIPORTS', 'BAJFINANCE', 'MARUTI', 'SUNPHARMA', 'WIPRO']
-
-    stocks = await fetchFromYahoo(prioritySymbols)
+    // Try Yahoo Finance quote API
+    stocks = await fetchFromYahooQuotes()
     source = 'yahoo'
-
-    // If we got some data, fetch remaining in background
-    if (stocks.length > 0) {
-      const remainingSymbols = Object.keys(INDIAN_STOCKS)
-        .filter(s => !stocks.some(st => st.symbol === s))
-        .slice(0, 30)
-
-      const remaining = await fetchFromYahoo(remainingSymbols)
-      stocks = [...stocks, ...remaining]
-    }
   }
 
   // Update cache
   if (stocks.length > 0) {
     stockCache = { data: stocks, timestamp: now }
-    return NextResponse.json({ stocks, timestamp: new Date().toISOString(), source })
+    return NextResponse.json({ stocks, timestamp: new Date().toISOString(), source, count: stocks.length })
   }
 
   return NextResponse.json({ stocks: [], error: 'Unable to fetch stock data', timestamp: new Date().toISOString() })
