@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-// Indian stock symbols with realistic price data
+// Indian stock symbols
 const STOCK_DATA: Record<string, { symbol: string; name: string; sector: string; basePrice: number }> = {
   'NIFTY': { symbol: 'NIFTY', name: 'NIFTY 50', sector: 'Index', basePrice: 22350 },
   'BANKNIFTY': { symbol: 'BANKNIFTY', name: 'BANK NIFTY', sector: 'Index', basePrice: 48200 },
@@ -112,53 +112,9 @@ interface StockQuote {
   lifetimeLow?: number
 }
 
-// Generate realistic stock data with time-based variation
-function generateStockData(symbol: string, name: string, sector: string, basePrice: number): StockQuote {
-  const now = Date.now()
-  const seed = symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-  
-  // Time-based variation (changes every few seconds)
-  const timeVariation = Math.sin(now / 5000 + seed) * 0.02
-  const randomVariation = (Math.random() - 0.5) * 0.01
-  
-  const changePercent = (timeVariation + randomVariation) * 100
-  const price = basePrice * (1 + changePercent / 100)
-  
-  // Daily OHLC
-  const dayRange = basePrice * 0.015
-  const open = basePrice * (1 + (Math.random() - 0.5) * 0.005)
-  const high = Math.max(price, open) * (1 + Math.random() * 0.008)
-  const low = Math.min(price, open) * (1 - Math.random() * 0.008)
-  const prevClose = basePrice * (1 + (Math.random() - 0.5) * 0.01)
-  
-  return {
-    symbol,
-    name,
-    sector,
-    price: Math.round(price * 100) / 100,
-    change: Math.round((price - prevClose) * 100) / 100,
-    pChange: Math.round(changePercent * 100) / 100,
-    o: Math.round(open * 100) / 100,
-    h: Math.round(high * 100) / 100,
-    l: Math.round(low * 100) / 100,
-    c: Math.round(prevClose * 100) / 100,
-    todayOpen: Math.round(open * 100) / 100,
-    todayHigh: Math.round(high * 100) / 100,
-    todayLow: Math.round(low * 100) / 100,
-    todayClose: Math.round(price * 100) / 100,
-    prevMonthHigh: Math.round(basePrice * 1.08 * 100) / 100,
-    prevMonthLow: Math.round(basePrice * 0.92 * 100) / 100,
-    prevMonthClose: Math.round(basePrice * 0.98 * 100) / 100,
-    week52High: Math.round(basePrice * 1.25 * 100) / 100,
-    week52Low: Math.round(basePrice * 0.75 * 100) / 100,
-    lifetimeHigh: Math.round(basePrice * 1.45 * 100) / 100,
-    lifetimeLow: Math.round(basePrice * 0.55 * 100) / 100,
-  }
-}
-
 // Global cache
 let stockCache: { data: StockQuote[]; timestamp: number } | null = null
-const CACHE_DURATION = 10000 // 10 seconds
+const CACHE_DURATION = 15000 // 15 seconds
 
 // Gateway URL for Finance API (Z.ai environment)
 const GATEWAY_URL = process.env.GATEWAY_URL || 'https://internal-api.z.ai'
@@ -172,7 +128,7 @@ const YAHOO_SYMBOLS: Record<string, string> = {
   'MIDCPNIFTY': 'NIFTY_MIDCAP_150.NS',
 }
 
-// Try to fetch real data from gateway (Z.ai environment)
+// Try Gateway API (Z.ai environment) - Real Data
 async function fetchFromGateway(): Promise<StockQuote[] | null> {
   try {
     const symbols = Object.keys(STOCK_DATA)
@@ -185,7 +141,7 @@ async function fetchFromGateway(): Promise<StockQuote[] | null> {
       `${GATEWAY_URL}${API_PREFIX}/v1/markets/stock/quotes?ticker=${encodeURIComponent(tickerParam)}`,
       {
         headers: { 'X-Z-AI-From': 'Z' },
-        signal: AbortSignal.timeout(8000)
+        signal: AbortSignal.timeout(10000)
       }
     )
 
@@ -234,10 +190,188 @@ async function fetchFromGateway(): Promise<StockQuote[] | null> {
       }
     }
 
-    return results.length > 0 ? results : null
+    return results.length > 5 ? results : null
   } catch {
     return null
   }
+}
+
+// Try Yahoo Finance v7 API - Works from Vercel sometimes
+async function fetchFromYahooV7(): Promise<StockQuote[] | null> {
+  try {
+    // Get first 20 stocks to avoid timeout
+    const symbols = Object.keys(STOCK_DATA).slice(0, 20)
+    const yahooSymbols = symbols.map(s => {
+      if (YAHOO_SYMBOLS[s]) return YAHOO_SYMBOLS[s]
+      return `${s}.NS`
+    }).join(',')
+
+    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${yahooSymbols}`
+    
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+      },
+      signal: AbortSignal.timeout(15000)
+    })
+
+    if (!response.ok) return null
+
+    const data = await response.json()
+    const quotes = data.quoteResponse?.result || []
+    const results: StockQuote[] = []
+
+    for (const quote of quotes) {
+      const ticker = quote.symbol as string
+      const price = quote.regularMarketPrice as number
+
+      if (price && price > 0) {
+        let ourSymbol = ticker.replace('.NS', '')
+        if (ticker === '^NSEI') ourSymbol = 'NIFTY'
+        if (ticker === '^NSEBANK') ourSymbol = 'BANKNIFTY'
+
+        const stockInfo = STOCK_DATA[ourSymbol]
+        if (stockInfo) {
+          results.push({
+            symbol: ourSymbol,
+            name: stockInfo.name,
+            sector: stockInfo.sector,
+            price: price,
+            change: quote.regularMarketChange || 0,
+            pChange: quote.regularMarketChangePercent || 0,
+            o: quote.regularMarketOpen || price,
+            h: quote.regularMarketDayHigh || price,
+            l: quote.regularMarketDayLow || price,
+            c: quote.regularMarketPreviousClose || price,
+            todayOpen: quote.regularMarketOpen || price,
+            todayHigh: quote.regularMarketDayHigh || price,
+            todayLow: quote.regularMarketDayLow || price,
+            todayClose: price,
+            prevMonthHigh: Math.round(price * 1.05 * 100) / 100,
+            prevMonthLow: Math.round(price * 0.95 * 100) / 100,
+            prevMonthClose: quote.regularMarketPreviousClose || price,
+            week52High: quote.fiftyTwoWeekHigh || price * 1.25,
+            week52Low: quote.fiftyTwoWeekLow || price * 0.75,
+            lifetimeHigh: quote.fiftyTwoWeekHigh ? quote.fiftyTwoWeekHigh * 1.15 : price * 1.4,
+            lifetimeLow: quote.fiftyTwoWeekLow ? quote.fiftyTwoWeekLow * 0.85 : price * 0.6,
+          })
+        }
+      }
+    }
+
+    return results.length > 5 ? results : null
+  } catch (error) {
+    console.error('Yahoo v7 error:', error)
+    return null
+  }
+}
+
+// Try Yahoo Finance v8 API (different endpoint)
+async function fetchFromYahooV8(): Promise<StockQuote[] | null> {
+  try {
+    const results: StockQuote[] = []
+    const symbols = Object.keys(STOCK_DATA).slice(0, 10) // Limit to 10 for speed
+
+    // Fetch each symbol individually for better success rate
+    for (const sym of symbols) {
+      const yahooSymbol = YAHOO_SYMBOLS[sym] || `${sym}.NS`
+      
+      try {
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=1d&range=1d`
+        
+        const response = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15',
+          },
+          signal: AbortSignal.timeout(5000)
+        })
+
+        if (!response.ok) continue
+
+        const data = await response.json()
+        const meta = data.chart?.result?.[0]?.meta
+
+        if (meta && meta.regularMarketPrice) {
+          const price = meta.regularMarketPrice
+          const stockInfo = STOCK_DATA[sym]
+          
+          if (stockInfo) {
+            results.push({
+              symbol: sym,
+              name: stockInfo.name,
+              sector: stockInfo.sector,
+              price: price,
+              change: price - (meta.previousClose || price),
+              pChange: ((price - (meta.previousClose || price)) / (meta.previousClose || price)) * 100,
+              o: meta.chartPreviousClose || price,
+              h: price * 1.01,
+              l: price * 0.99,
+              c: meta.previousClose || price,
+              todayOpen: meta.chartPreviousClose || price,
+              todayHigh: price * 1.01,
+              todayLow: price * 0.99,
+              todayClose: price,
+              prevMonthHigh: price * 1.05,
+              prevMonthLow: price * 0.95,
+              prevMonthClose: meta.previousClose || price,
+              week52High: price * 1.25,
+              week52Low: price * 0.75,
+              lifetimeHigh: price * 1.4,
+              lifetimeLow: price * 0.6,
+            })
+          }
+        }
+      } catch {
+        continue
+      }
+    }
+
+    return results.length > 3 ? results : null
+  } catch {
+    return null
+  }
+}
+
+// Generate fallback data with realistic prices
+function generateFallbackData(): StockQuote[] {
+  const now = Date.now()
+  
+  return Object.entries(STOCK_DATA).map(([symbol, data]) => {
+    const seed = symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+    const timeVariation = Math.sin(now / 5000 + seed) * 0.02
+    const randomVariation = (Math.random() - 0.5) * 0.01
+    const changePercent = (timeVariation + randomVariation) * 100
+    const price = data.basePrice * (1 + changePercent / 100)
+    const prevClose = data.basePrice * (1 + (Math.random() - 0.5) * 0.01)
+    
+    return {
+      symbol,
+      name: data.name,
+      sector: data.sector,
+      price: Math.round(price * 100) / 100,
+      change: Math.round((price - prevClose) * 100) / 100,
+      pChange: Math.round(changePercent * 100) / 100,
+      o: Math.round(data.basePrice * (1 + (Math.random() - 0.5) * 0.005) * 100) / 100,
+      h: Math.round(price * 1.008 * 100) / 100,
+      l: Math.round(price * 0.992 * 100) / 100,
+      c: Math.round(prevClose * 100) / 100,
+      todayOpen: Math.round(data.basePrice * (1 + (Math.random() - 0.5) * 0.005) * 100) / 100,
+      todayHigh: Math.round(price * 1.008 * 100) / 100,
+      todayLow: Math.round(price * 0.992 * 100) / 100,
+      todayClose: Math.round(price * 100) / 100,
+      prevMonthHigh: Math.round(data.basePrice * 1.08 * 100) / 100,
+      prevMonthLow: Math.round(data.basePrice * 0.92 * 100) / 100,
+      prevMonthClose: Math.round(data.basePrice * 0.98 * 100) / 100,
+      week52High: Math.round(data.basePrice * 1.25 * 100) / 100,
+      week52Low: Math.round(data.basePrice * 0.75 * 100) / 100,
+      lifetimeHigh: Math.round(data.basePrice * 1.45 * 100) / 100,
+      lifetimeLow: Math.round(data.basePrice * 0.55 * 100) / 100,
+    }
+  })
 }
 
 export async function GET() {
@@ -251,17 +385,30 @@ export async function GET() {
   let stocks: StockQuote[] = []
   let source = 'fallback'
 
-  // Try gateway first (works in Z.ai environment)
+  // Try multiple sources in order
+  // 1. Gateway API (Z.ai environment - best quality)
   const gatewayData = await fetchFromGateway()
   if (gatewayData && gatewayData.length > 10) {
     stocks = gatewayData
     source = 'gateway'
   } else {
-    // Use simulated data with realistic prices (works everywhere)
-    stocks = Object.entries(STOCK_DATA).map(([symbol, data]) =>
-      generateStockData(symbol, data.name, data.sector, data.basePrice)
-    )
-    source = 'simulated'
+    // 2. Yahoo Finance v7 API
+    const yahooV7Data = await fetchFromYahooV7()
+    if (yahooV7Data && yahooV7Data.length > 5) {
+      stocks = yahooV7Data
+      source = 'yahoo-v7'
+    } else {
+      // 3. Yahoo Finance v8 API
+      const yahooV8Data = await fetchFromYahooV8()
+      if (yahooV8Data && yahooV8Data.length > 3) {
+        stocks = yahooV8Data
+        source = 'yahoo-v8'
+      } else {
+        // 4. Fallback to simulated data
+        stocks = generateFallbackData()
+        source = 'fallback'
+      }
+    }
   }
 
   // Update cache
